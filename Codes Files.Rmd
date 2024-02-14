@@ -1,0 +1,593 @@
+---
+title: "Diabetes Prediction Analysis"
+author: "Nguyen Trang, Gomez Maria, Farooqui Numayr, Chithjhallu Sai Siva Deekshita"
+output: html_document
+---
+
+#### **Project Topic:** **Diabetes prediction analysis**
+
+#### Materials and Methods
+
+#### Data Collection and Feature Evaluation
+
+```{r}
+library(readxl)
+diabetes1 <- read_excel("diabetes_prediction_dataset 3.xlsx")
+```
+
+```{r}
+summary(diabetes1)
+```
+
+```{r}
+num_observations <- nrow(diabetes1)
+paste("Number of observations:", num_observations)
+num_variables <- ncol(diabetes1)
+paste("Number of variables:", num_variables)
+```
+
+```{r}
+variable_names <- names(diabetes1)
+variable_names
+```
+
+
+```{r}
+
+# Create a data dictionary data frame
+dictionary_data <- data.frame(
+  VariableName = c(
+    "gender",
+    "age",
+    "hypertension",
+    "heart_disease",
+    "smoking_history",
+    "bmi",
+    "HbA1c_level",
+    "blood_glucose_level",
+    "diabetes"
+  ),
+  Description = c(
+    "Gender of the individual (Female, Male)",
+    "Age of the individual",
+    "Presence of hypertension (0 = no, 1 = yes)",
+    "Presence of heart disease (0 = no, 1 = yes)",
+    "History of smoking (never, current,no info)",
+    "Body Mass Index (BMI)",
+    "HbA1c level (average blood sugar over the past 3 months)",
+    "Blood glucose level",
+    "Diabetes status (0 = no, 1 = yes)"
+  ),
+  DataType = c(
+    "Nominal Category",
+    "Continuous",
+    "Discrete",
+    "Discrete",
+    "Nominal Category",
+    "Continuous",
+    "Continuous",
+    "Continuous",
+    "Discrete"
+  )
+)
+dictionary_data
+```
+
+![](data_dict0926.png){width="526"}
+
+**Table 1: Data Dictionary Table of 9 Contributors to Diabetes Prediction Analysis**
+
+#### Data Cleaning and Pre-processing
+
+#### Exploratory Data Analysis
+
+```{r}
+head(diabetes1)
+```
+
+```{r}
+summary(diabetes1)
+```
+```{r}
+# Create binary variables for Female and Male
+diabetes1$Female <- ifelse(diabetes1$gender == "Female", 1, 0)
+diabetes1$Male <- ifelse(diabetes1$gender == "Male", 1, 0)
+
+# Remove the original "gender" column if you don't need it
+diabetes1 <- diabetes1[, !(diabetes1 %in% "gender")]
+
+```
+
+```{r}
+diabetes1$current <- ifelse(diabetes1$smoking_history == "current", 1, 0)
+diabetes1$former <- ifelse(diabetes1$smoking_history == "former", 1, 0)
+diabetes1$never <- ifelse(diabetes1$smoking_history == "never", 1, 0)
+
+# Remove the original "gender" column if you don't need it
+diabetes1 <- diabetes1[, !(names(diabetes1) %in% "smoking_history")]
+
+```
+
+```{r}
+# Rename the columns
+colnames(diabetes1)[colnames(diabetes1) == "gender"] <- "Gender"
+colnames(diabetes1)[colnames(diabetes1) == "current"] <- "Current_Smoker"
+colnames(diabetes1)[colnames(diabetes1) == "former"] <- "Former_Smoker"
+colnames(diabetes1)[colnames(diabetes1) == "never"] <- "Never_Smoker"
+
+colnames(diabetes1)[colnames(diabetes1) == "age"] <- "Age"
+colnames(diabetes1)[colnames(diabetes1) == "hypertension"] <- "Hypertension"
+colnames(diabetes1)[colnames(diabetes1) == "heart_disease"] <- "Heart_disease"
+colnames(diabetes1)[colnames(diabetes1) == "bmi"] <- "BMI"
+colnames(diabetes1)[colnames(diabetes1) == "blood_glucose_level"] <- "Blood_glucose_level"
+colnames(diabetes1)[colnames(diabetes1) == "diabetes"] <- "Diabetes"
+```
+
+
+#### Handling Missing Values:**
+
+
+```{r}
+total_missing <- sum(is.na(diabetes1))
+paste("Total missing values:", total_missing)
+```
+#### Data Distribution
+
+```{r}
+# Create individual plots
+library(ggplot2)
+library(gridExtra)
+
+# Create individual plots with smaller title text
+plot_age <- ggplot(diabetes1, aes(x = Age)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution of Age", y = NULL) +
+  theme(plot.title = element_text(size = 10))  # Adjust the size of the title text
+
+plot_bmi <- ggplot(diabetes1, aes(x = BMI)) + 
+  geom_histogram(binwidth = 1, fill = "lightcoral", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution of BMI", y = NULL) +
+  theme(plot.title = element_text(size = 10))
+
+plot_HbA1c <- ggplot(diabetes1, aes(x = HbA1c_level)) + 
+  geom_histogram(binwidth = 1, fill = "lightgoldenrodyellow", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution of HbA1c_level", y = NULL) +
+  theme(plot.title = element_text(size = 10))
+
+plot_glucose <- ggplot(diabetes1, aes(x = Blood_glucose_level)) + 
+  geom_histogram(binwidth = 1, fill = "lightgreen", color = "black", alpha = 0.7) + 
+  labs(title = "Distribution of Blood Glucose Level", y = NULL) +
+  theme(plot.title = element_text(size = 10))
+
+# Combine the plots into a 2x2 grid
+grid.arrange(plot_age, plot_bmi, plot_HbA1c, plot_glucose, ncol = 2)
+```
+
+```{r}
+# Create a vector of variable names for which you want to create Q-Q plots
+variables_to_plot <- c("Age", "BMI", "HbA1c_level", "Blood_glucose_level")
+
+# Define the number of rows and columns for the grid
+rows <- 2  # You can adjust the number of rows
+cols <- 2  # You can adjust the number of columns
+
+# Set the size of the graphical device to make the plot bigger
+options(repr.plot.width = 10, repr.plot.height = 15)  # Adjust width and height as needed
+
+# Set up a grid layout for the plots
+par(mfrow = c(rows, cols))
+
+# Create Q-Q plots for each variable with larger size and black circle dots (no color)
+for (variable in variables_to_plot) {
+  qqnorm(diabetes1[[variable]], main = paste("Q-Q Plot for", variable), pch = 1, cex = 0.7, col = "black")
+  qqline(diabetes1[[variable]], col = "red", lwd = 1.5)
+}
+```
+
+
+```{r}
+install.packages("nortest")
+library(nortest)
+```
+
+```{r}
+# Assuming you have a variable 'my_data' for which you want to perform the test
+anderson_test_result <- ad.test(diabetes1$Age)
+
+# Print the result
+print(anderson_test_result)
+```
+```{r}
+# Assuming you have a dataframe 'diabetes1'
+library(nortest)  # Load the nortest package
+
+# Define the variables for which you want to perform the Anderson-Darling test
+variables_to_test <- c("Age", "BMI", "HbA1c_level", "Blood_glucose_level")
+
+# Create an empty list to store the test results
+anderson_results <- list()
+
+# Loop through the variables and perform the test
+for (variable in variables_to_test) {
+  result <- ad.test(diabetes1[[variable]])  # Perform the Anderson-Darling test
+  anderson_results[[variable]] <- result  # Store the result in the list
+}
+
+# Print the results
+for (variable in variables_to_test) {
+  cat("Variable:", variable, "\n")
+  print(anderson_results[[variable]])
+  cat("\n")
+}
+```
+```{r}
+library(readxl)
+diabetes2 <- read_excel("diabetes_prediction_dataset 3.xlsx")
+```
+
+```{r}
+install.packages("ggplot2")
+```
+```{r}
+library(gridExtra)
+```
+
+```{r}
+p1 <- ggplot(diabetes2[diabetes2$diabetes == 1, ], aes(x = gender)) +
+  geom_bar(fill = "lightcoral", color = "black") +
+  labs(title = "Diabetes Status by Gender") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+
+# Plot for Hypertension with only diabetes = 1 (yes)
+# Filter the data for both scenarios
+data_hypertension <- diabetes2[(diabetes2$diabetes == 1 & diabetes2$hypertension == 0) | (diabetes2$diabetes == 0 & diabetes2$hypertension == 0), ]
+
+# Create a bar chart to display both scenarios
+p2 <- ggplot(data_hypertension, aes(x = factor(diabetes), fill = factor(diabetes))) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(title = "Diabetes Status by Hypertension") +
+  scale_fill_manual(values = c("0" = "lightgray", "1" = "lightblue")) +
+  scale_x_discrete(labels = c("No Diabetes", "Diabetes")) +
+  xlab("Hypertension") +
+  ylab("Count of Individuals")
+
+# Plot for Heart Disease with only diabetes = 1 (yes)
+# Filter the data for both scenarios
+data_heart_disease <- diabetes2[(diabetes2$diabetes == 1 & diabetes2$heart_disease == 0) | (diabetes2$diabetes == 0 & diabetes2$heart_disease == 0), ]
+
+# Create a bar chart to display both scenarios
+p3 <- ggplot(data_heart_disease, aes(x = factor(diabetes), fill = factor(diabetes))) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(title = "Diabetes Status by Heart_disease") +
+  scale_fill_manual(values = c("0" = "gray", "1" = "lightgreen")) +
+  scale_x_discrete(labels = c("No Diabetes", "Diabetes")) +
+  xlab("Heart_disease") +
+  ylab("Count of Individuals")
+
+
+p4 <- ggplot(diabetes2[diabetes2$diabetes == 1, ], aes(x = smoking_history)) +
+  geom_bar(fill = "lightgreen", color = "black") +
+  labs(title = "Diabetes Status by Smoking History") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+p5 <- ggplot(diabetes2, aes(x = factor(diabetes))) +
+  geom_bar(fill = "lightgray", color = "black") +
+  labs(title = "Diabetes Status") +
+  scale_x_discrete(labels = c("No Diabetes", "Diabetes"))
+
+# Arrange the plots in a grid
+grid.arrange(p1,p2, p3, p4, p5, ncol = 2)
+```
+
+
+
+```{r}
+# Create tables for each plot
+gender_diabetes_table <- table(diabetes2$gender, diabetes2$diabetes)
+
+# Print the tables
+print("Table for Gender:")
+print(gender_diabetes_table)
+
+```
+```{r}
+# Create a table
+table1 <- table(diabetes2$hypertension, diabetes2$diabetes)
+
+# Print the table
+print(table1)
+```
+```{r}
+# Create a table
+table2 <- table(diabetes2$heart_disease, diabetes2$diabetes)
+
+# Print the table
+print(table2)
+```
+```{r}
+table3 <- table(diabetes2$smoking_history, diabetes2$diabetes)
+
+# Print the tables
+print("Table for Gender:")
+print(table3)
+```
+```{r}
+# Boxplot to explore the relationship between age and diabetes
+p1 <- ggplot(diabetes2, aes(x = as.factor(diabetes), y = age)) +
+  geom_boxplot(fill = "lightcoral") +
+  labs(title = "Age vs. Diabetes Status", x = "Diabetes Status", y = "Age")
+
+# Box Plot for BMI vs. Diabetes
+p2 <- ggplot(diabetes2, aes(x = as.factor(diabetes), y = bmi, fill = as.factor(diabetes))) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = c("lightblue", "lightcoral"), labels = c("No Diabetes", "Diabetes")) +
+  labs(title = "BMI vs. Diabetes", x = "Diabetes Status", y = "BMI")
+
+# Box Plot for HbA1c_level vs. Diabetes
+p3 <- ggplot(diabetes2, aes(x = as.factor(diabetes), y = HbA1c_level, fill = as.factor(diabetes))) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_manual(values = c("lightblue", "lightcoral"), labels = c("No Diabetes", "Diabetes")) +
+  labs(title = "HbA1c Level vs. Diabetes", x = "Diabetes Status", y = "HbA1c Level")
+
+# Box Plot for Blood Glucose Level vs. Diabetes
+p4 <- ggplot(diabetes2, aes(x = as.factor(diabetes), y = blood_glucose_level, fill = as.factor(diabetes))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("lightblue", "lightcoral"), labels = c("No Diabetes", "Diabetes")) +
+  labs(title = "Blood Glucose vs. Diabetes", x = "Diabetes Status", y = "Blood Glucose Level")
+
+
+
+# Install gridExtra if not already installed
+if (!requireNamespace("gridExtra", quietly = TRUE)) { 
+  install.packages("gridExtra")
+}
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+
+
+#### Outlier Detection and Treatment :**
+
+```{r}
+install.packages("dplyr")
+```
+
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(gridExtra)
+
+# Assuming you have a data frame called "diabetes1"
+diabetes1$Age <- as.numeric(diabetes1$Age)
+diabetes1$BMI <- as.numeric(diabetes1$BMI)
+
+# Create boxplots for Age and BMI
+boxplot1 <- ggplot(diabetes1, aes(x = 1, y = Age)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Boxplot for Age") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank())
+
+boxplot2 <- ggplot(diabetes1, aes(x = 1, y = BMI)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Boxplot for BMI") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank())
+
+# Arrange the boxplots side by side
+grid.arrange(boxplot1, boxplot2, ncol = 2)
+```
+
+
+####  Data Type Correction**
+
+After data cleaning, the data is processed to transform raw data into a refined and well-structured dataset.
+
+*Convert to Factor:*
+
+```{r}
+diabetes1$Male <- as.factor(diabetes1$Male)
+diabetes1$Female <- as.factor(diabetes1$Female)
+
+diabetes1$Hypertension <- as.factor(diabetes1$Hypertension)
+diabetes1$Heart_disease <- as.factor(diabetes1$Heart_disease)
+
+diabetes1$Current_Smoker <- as.factor(diabetes1$Current_Smoker)
+
+diabetes1$Former_Smoker <- as.factor(diabetes1$Former_Smoker)
+
+diabetes1$Never_Smoker <- as.factor(diabetes1$Never_Smoker)
+
+diabetes1$Diabetes <- as.factor(diabetes1$Diabetes)
+```
+
+```{r}
+str(diabetes1)
+```
+
+#### Correlation Matrix
+
+We use correlation matrix to identify linear relationships and multicollinearity issues.
+
+```{r}
+names(diabetes1)
+```
+```{r}
+library(readxl)
+transformed_data <- read_excel("diabetes_prediction_dataset 3.xlsx")
+```
+
+```{r}
+transformed_data$current <- ifelse(transformed_data$smoking_history == "current", 1, 0)
+transformed_data$former <- ifelse(transformed_data$smoking_history == "former", 1, 0)
+transformed_data$never <- ifelse(transformed_data$smoking_history == "never", 1, 0)
+print(transformed_data)
+```
+```{r}
+# Rename the columns
+colnames(transformed_data)[colnames(transformed_data) == "current"] <- "Current_Smoker"
+colnames(transformed_data)[colnames(transformed_data) == "former"] <- "Former_Smoker"
+colnames(transformed_data)[colnames(transformed_data) == "never"] <- "Never_Smoker"
+
+colnames(transformed_data)[colnames(transformed_data) == "age"] <- "Age"
+colnames(transformed_data)[colnames(transformed_data) == "hypertension"] <- "Hypertension"
+colnames(transformed_data)[colnames(transformed_data) == "heart_disease"] <- "Heart_disease"
+
+
+
+# Print the updated data frame
+print(transformed_data)
+```
+
+```{r}
+transformed_data <- subset(transformed_data, select = -Hypertension)
+transformed_data <- subset(transformed_data, select = -smoking_history)
+
+```
+
+```{r}
+transformed_data$Current_Smoker <- as.numeric(transformed_data$Current_Smoker)
+transformed_data$Former_Smoker <- as.numeric(transformed_data$Former_Smoker)
+transformed_data$Never_Smoker <- as.numeric(transformed_data$Never_Smoker)
+```
+
+```{r}
+# Check for unique values in the "Current_Smoker" variable
+unique_values <- unique(transformed_data$Current_Smoker)
+
+# Remove NA values
+unique_values <- unique_values[!is.na(unique_values)]
+
+# Print the unique values without NA
+print(unique_values)
+```
+
+```{r}
+# Check for unique values in the "Former_Smoker" variable
+unique_values <- unique(transformed_data$Former_Smoker)
+
+# Remove NA values
+unique_values <- unique_values[!is.na(unique_values)]
+
+# Print the unique values without NA
+print(unique_values)
+```
+
+
+```{r}
+# Check for unique values in the "Never_Smoker" variable
+unique_values <- unique(transformed_data$Never_Smoker)
+
+# Remove NA values
+unique_values <- unique_values[!is.na(unique_values)]
+
+# Print the unique values without NA
+print(unique_values)
+```
+
+
+```{r}
+cor_matrix <- cor(transformed_data)
+# Calculate the correlation matrix
+correlation_matrix <- cor(transformed_data)
+
+# Create a custom color palette (optional)
+custom_palette <- colorRampPalette(c("blue", "white", "red"))(100)
+
+# Create a full correlogram with the custom color palette
+corrplot(correlation_matrix, method = "color", type = "full",
+         tl.col = "black", tl.srt = 90, col = custom_palette)
+```
+
+#### Econometric Models and Techniques
+
+#### Logistic Regression**
+
+**Hypothesis Testing**
+
+*Null Hypothesis*: There is no significant relationship between the predictor variables (age, BMI, HbA1c level, and blood glucose level) and the probability of having diabetes.
+
+*Alternative Hypothesis*: There is a significant relationship between at least one of the predictor variables (age, BMI, HbA1c level, or blood glucose level) and the probability of having diabetes.\
+
+**Testing Performance**
+
+```{r}
+model <- glm(Diabetes ~ Age + BMI + Current_Smoker + Former_Smoker + Never_Smoker, data = diabetes1, family = binomial)
+
+# Summarize the logistic regression model
+summary(model)
+```
+
+#### Propensity Score Method**
+
+```{r}
+library(readxl)
+transformed_data <- read_excel("~/Downloads/diabetes_transformed.xlsx")
+```
+
+
+
+```{r}
+transformed_data$Never <- as.factor(transformed_data$never)
+transformed_data$Current <- as.factor(transformed_data$current)
+transformed_data$Former <- as.factor(transformed_data$former)
+```
+
+
+Convert to Numeric:
+
+```{r}
+transformed_data$age <- as.numeric(transformed_data$age)
+transformed_data$bmi <- as.numeric(transformed_data$bmi)
+```
+
+```{r}
+str(transformed_data)
+```
+Correlation Matrix 
+
+```{r}
+# Subset dataset for continuous variables
+cont_vars <- transformed_data[, c("age", "bmi")]
+
+# Compute correlation matrix
+cor_matrix <- cor(cont_vars)
+print(cor_matrix)
+
+```
+
+
+```{r}
+install.packages("MatchIt")
+library(MatchIt)
+```
+
+```{r}
+install.packages("cobalt")
+library(cobalt)
+
+```
+
+```{r}
+# Define the formula for the propensity score model
+formula <- diabetes ~ age + bmi + never + current 
+```
+
+```{r}
+# Perform propensity score matching
+m.out <- matchit(formula, data = transformed_data, method = "nearest")
+summary(m.out)
+love.plot(m.out)
+
+```
+
+```{r}
+# Analyze the matched data
+model <- lm(diabetes ~ age + bmi +  never + current + former data = transformed_data)
+summary(model)
+```
+
+
